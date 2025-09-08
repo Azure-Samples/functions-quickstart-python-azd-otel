@@ -25,6 +25,7 @@ module processor '../core/host/functions-flexconsumption.bicep' = {
     tags: union(tags, { 'azd-service-name': serviceName })
     identityType: 'UserAssigned'
     identityId: identityId
+    identityClientId: identityClientId
     appSettings: union(appSettings,
       {
         ServiceBusConnection__fullyQualifiedNamespace: serviceBusNamespaceFQDN

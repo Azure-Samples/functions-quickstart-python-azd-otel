@@ -171,6 +171,17 @@ module ServiceBusDataOwnerRoleAssignment 'app/servicebus-Access.bicep' = [for ro
   }
 }]
 
+// Monitoring Metrics Publisher role assignment for Application Insights  
+module appInsightsMetricsPublisherRole 'app/appinsights-Access.bicep' = {
+  name: 'appInsightsMetricsPublisher'
+  scope: rg
+  params: {
+    applicationInsightsName: monitoring.outputs.name
+    roleId: '3913510d-42f4-4e42-8a64-420c390055eb' // Monitoring Metrics Publisher
+    principalIds: principalIds
+  }
+}
+
 // Virtual Network & private endpoint
 module serviceVirtualNetwork 'br/public:avm/res/network/virtual-network:0.6.1' = if (vnetEnabled) {
   name: 'serviceVirtualNetwork'

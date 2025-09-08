@@ -11,6 +11,8 @@ param virtualNetworkSubnetId string = ''
 param identityType string
 @description('User assigned identity name')
 param identityId string
+@description('User assigned identity client ID')
+param identityClientId string = ''
 
 // Runtime Properties
 @allowed([
@@ -26,6 +28,20 @@ param appSettings object = {}
 param instanceMemoryMB int = 2048
 param maximumInstanceCount int = 100
 param deploymentStorageContainerName string
+
+var baseAppSettings = {
+  AzureWebJobsStorage__accountName: stg.name
+  AzureWebJobsStorage__credential : 'managedidentity'
+  APPLICATIONINSIGHTS_AUTHENTICATION_STRING: !empty(identityClientId) ? 'ClientId=${identityClientId};Authorization=AAD' : ''
+}
+
+var appInsightsSettings = !empty(applicationInsightsName) ? {
+  APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString
+} : {}
+
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = {
+  name: applicationInsightsName
+}
 
 resource stg 'Microsoft.Storage/storageAccounts@2022-09-01' existing = {
   name: storageAccountName
@@ -69,17 +85,8 @@ resource functions 'Microsoft.Web/sites@2023-12-01' = {
 
   resource configAppSettings 'config' = {
     name: 'appsettings'
-    properties: union(appSettings,
-      {
-        AzureWebJobsStorage__accountName: stg.name
-        AzureWebJobsStorage__credential : 'managedidentity'
-        APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString
-      })
+    properties: union(appSettings, baseAppSettings, appInsightsSettings)
   }
-}
-
-resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = if (!empty(applicationInsightsName)) {
-  name: applicationInsightsName
 }
 
 output name string = functions.name

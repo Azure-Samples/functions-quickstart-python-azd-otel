@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.36.1.42791",
-      "templateHash": "10159962595344918108"
+      "version": "0.37.4.10188",
+      "templateHash": "18259451660675302714"
     }
   },
   "parameters": {
@@ -760,10 +760,10 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', 'appserviceplan'), '2022-09-01').outputs.resourceId.value]"
           },
           "runtimeName": {
-            "value": "python"
+            "value": "java"
           },
           "runtimeVersion": {
-            "value": "3.10"
+            "value": "17"
           },
           "storageAccountName": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', 'storage'), '2022-09-01').outputs.name.value]"
@@ -792,8 +792,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.36.1.42791",
-              "templateHash": "6324128341388005495"
+              "version": "0.37.4.10188",
+              "templateHash": "2202711821192164997"
             }
           },
           "parameters": {
@@ -868,7 +868,7 @@
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2022-09-01",
-              "name": "[format('{0}-functions-python-module', parameters('serviceName'))]",
+              "name": "[format('{0}-functions-java-module', parameters('serviceName'))]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -927,8 +927,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.36.1.42791",
-                      "templateHash": "666401076554244643"
+                      "version": "0.37.4.10188",
+                      "templateHash": "10869484722065045722"
                     }
                   },
                   "parameters": {
@@ -986,6 +986,7 @@
                       "allowedValues": [
                         "3.10",
                         "3.11",
+                        "3.12",
                         "7.4",
                         "8.0",
                         "10",
@@ -1084,11 +1085,11 @@
           "outputs": {
             "SERVICE_PROCESSOR_NAME": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-functions-python-module', parameters('serviceName'))), '2022-09-01').outputs.name.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-functions-java-module', parameters('serviceName'))), '2022-09-01').outputs.name.value]"
             },
             "SERVICE_API_IDENTITY_PRINCIPAL_ID": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-functions-python-module', parameters('serviceName'))), '2022-09-01').outputs.identityPrincipalId.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-functions-java-module', parameters('serviceName'))), '2022-09-01').outputs.identityPrincipalId.value]"
             }
           }
         }
@@ -5801,8 +5802,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.36.1.42791",
-              "templateHash": "16357415700776342918"
+              "version": "0.37.4.10188",
+              "templateHash": "18039052383541116484"
             }
           },
           "parameters": {
@@ -10696,8 +10697,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.36.1.42791",
-              "templateHash": "17763795856706489927"
+              "version": "0.37.4.10188",
+              "templateHash": "13177027981419502496"
             }
           },
           "parameters": {
@@ -12377,8 +12378,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.36.1.42791",
-              "templateHash": "6686893809090431126"
+              "version": "0.37.4.10188",
+              "templateHash": "9052321821518370022"
             }
           },
           "parameters": {
@@ -12519,8 +12520,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.36.1.42791",
-              "templateHash": "17653801367366398644"
+              "version": "0.37.4.10188",
+              "templateHash": "6840194258581906539"
             }
           },
           "parameters": {
@@ -16378,10 +16379,6 @@
     }
   ],
   "outputs": {
-    "APPLICATIONINSIGHTS_CONNECTION_STRING": {
-      "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', format('{0}-appinsights', uniqueString(deployment().name, parameters('location')))), '2022-09-01').outputs.connectionString.value]"
-    },
     "AZURE_LOCATION": {
       "type": "string",
       "value": "[parameters('location')]"
