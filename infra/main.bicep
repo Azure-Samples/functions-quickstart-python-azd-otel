@@ -74,7 +74,7 @@ module processor './app/processor.bicep' = {
     identityClientId: processorUserAssignedIdentity.outputs.clientId
     appSettings: {
     }
-    virtualNetworkSubnetId: vnetEnabled ? '${serviceVirtualNetwork.outputs.resourceId}/subnets/app' : ''
+    virtualNetworkSubnetId: vnetEnabled ? '${serviceVirtualNetwork.?outputs.resourceId}/subnets/app' : ''
     serviceBusQueueName: !empty(serviceBusQueueName) ? serviceBusQueueName : '${abbrs.serviceBusNamespacesQueues}${resourceToken}'
     serviceBusNamespaceFQDN: '${serviceBus.outputs.name}.servicebus.windows.net'
     deploymentStorageContainerName: deploymentStorageContainerName
