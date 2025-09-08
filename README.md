@@ -1,5 +1,5 @@
 ---
-description: This end-to-end Python sample demonstrates the secure triggering of a Flex Consumption plan app from a Storage Bus instance secured in a virtual network.
+description: This end-to-end Python sample demonstrates the secure triggering of a Flex Consumption plan app from a Service Bus instance secured in a virtual network.
 page_type: sample
 products:
 - azure-functions
@@ -11,92 +11,210 @@ languages:
 - azdeveloper
 ---
 
-# Azure Functions quickstart with Service Bus trigger
+# Azure Functions Python Service Bus Trigger using Azure Developer CLI
 
-A common scenario that Azure Functions can be used for is for the processing of queue based events. For example, a list of batch processing jobs is queued up with instructions for machine learning processing. The function app can do some ML inferencing before completing the message in the queue.
+This template repository contains a Service Bus trigger reference sample for functions written in Python and deployed to Azure using the Azure Developer CLI (`azd`). The sample uses managed identity and a virtual network to make sure deployment is secure by default. This sample demonstrates these two key features of the Flex Consumption plan:
 
-This sample demonstrates a function app running in a Flex Consumption plan that connects to Service Bus running in a virtual network. This sample demonstrates these two key features of the Flex Consumption plan:
-
-* **High scale**. A low concurency of 1 is configured for the function app in the `host.json` file. Once messages are loaded into Service Bus and the app is started, you can see how it scales to one app instance per message simultaneously.
+* **High scale**. A low concurrency of 1 is configured for the function app in the `host.json` file. Once messages are loaded into Service Bus and the app is started, you can see how it scales to one app instance per message simultaneously.
 * **Virtual network integration**. The Service Bus that this Flex Consumption app reads events from is secured behind a private endpoint. The function app can read events from it because it is configured with VNet integration. All connections to Service Bus and to the storage account associated with the Flex Consumption app also use managed identity connections instead of connection strings.
 
 ![Diagram showing Service Bus with a private endpoint and an Azure Functions Flex Consumption app triggering from it via VNet integration](./img/SB-VNET.png)
+
+This project is designed to run on your local computer. You can also use GitHub Codespaces if available.
+
+This sample processes queue-based events, demonstrating a common Azure Functions scenario where batch processing jobs are queued up with instructions for processing. The function app processes each message with a simulated delay to showcase the scaling capabilities.
 
 > [!IMPORTANT]
 > This sample creates several resources. Make sure to delete the resource group after testing to minimize charges!
 
 ## Prerequisites
 
-Before you can run this sample, you must have the following:
++ [Python 3.8 or later](https://www.python.org/downloads/)
++ [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local?tabs=v4%2Clinux%2Cpython%2Cportal%2Cbash#install-the-azure-functions-core-tools)
++ To use Visual Studio Code to run and debug locally:
+  + [Visual Studio Code](https://code.visualstudio.com/)
+  + [Azure Functions extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions)
+  + [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
++ [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) (for deployment)
++ [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd?tabs=winget-windows%2Cbrew-mac%2Cscript-linux&pivots=os-windows)
++ An Azure subscription with Microsoft.Web and Microsoft.App [registered resource providers](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-providers-and-types#register-resource-provider)
 
-* An Azure subscription
-* Ensure both Microsoft.Web and Microsoft.App are [registered resource providers on the Azure subscription](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-providers-and-types#register-resource-provider)
-* [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) or [PowerShell Az Module](https://learn.microsoft.com/powershell/azure/new-azureps-module-az)
-* [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local?tabs=v4%2Clinux%2Ccsharp%2Cportal%2Cbash#install-the-azure-functions-core-tools)
-* [Azure Dev CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd?tabs=winget-windows%2Cbrew-mac%2Cscript-linux&pivots=os-windows)
+## Initialize the local project
 
-## Provision the solution on Azure
+You can initialize a project from this `azd` template in one of these ways:
 
-To set up this sample, follow these steps:
++ Use this `azd init` command from an empty local (root) folder:
 
-1. Clone this repository to your local machine.
-2. Sign in to Azure Developer CLI with the following command:
+    ```shell
+    azd init --template functions-quickstart-python-azd-service-bus
+    ```
 
-  ```bash
-  azd auth login
-  ```
+    Supply an environment name, such as `flexquickstart` when prompted. In `azd`, the environment is used to maintain a unique deployment context for your app.
 
-3. Sign in to either the Azure CLI or PowerShell (with Az module) to provide authentication for the hooks.
++ Clone the GitHub template repository locally using the `git clone` command:
 
-  Azure CLI authentication in bash terminal:
-  
-  ```bash
-  az login
-  ```
+    ```shell
+    git clone https://github.com/Azure-Samples/functions-quickstart-python-azd-service-bus.git
+    cd functions-quickstart-python-azd-service-bus
+    ```
 
-  PowerShell authentication in PowerShell terminal:
+    You can also clone the repository from your own fork in GitHub.
 
-  ```powershell
-  Connect-AzAccount
-  ```
+## Prepare your local environment
 
-4. Navigate to the project directory if you haven't already.
+1. Navigate to the `src` app folder and create a file in that folder named `local.settings.json` that contains this JSON data:
 
-5. Use [Azure Dev CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) to provision a new resource group with the environment name you provide and all the resources for the sample, then publish the code to the function app.
+    ```json
+    {
+        "IsEncrypted": false,
+        "Values": {
+            "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+            "FUNCTIONS_WORKER_RUNTIME": "python",
+            "ServiceBusConnection": "",
+            "ServiceBusQueueName": "testqueue"
+        }
+    }
+    ```
 
-  ```bash
-  azd up
-  ```
+    > [!NOTE]
+    > The `ServiceBusConnection` will be empty for local development. You'll need an actual Service Bus connection for full testing, which will be provided after deployment to Azure.
 
-## Inspect the solution (optional)
+2. (Optional) Create a Python virtual environment and activate it:
 
-1. Once the deployment is done, inspect the new resource group. The Flex Consumption function app and plan, storage, App Insights, Service Bus, and networking services have been created and configured:
-![List of resources created by the bicep template](./img/resources.png)
-1. The Service Bus namespace public network access has been turned off so nothing outside the VNet can access Service Bus. You can check this in the Service Bus  Namespace's `Networking` tab and the `Public access` tab:
-![Service Bus public network access turned off](./img/sb-disabled-network-access.png)
-1. The Service Bus namespace has a private endpoint configured to one of the subnets in the VNet. This means it can only be accessed from inside the VNet. You can check this in the Service Bus Namespace's `Networking` tab and the `Private Endpoint connections`:
-![Service Bus private endpoint](./img/sb-private-endpoint.png)
-1. An outbound virtual network integration has been created in your Function App into another subnet in the same VNet. This means it can access the Service Bus namespace. You can check this in the function app's `Networking` tab in the `Outbound traffic configuration` section:
-![Function App Networking tab](./img/func-vnet.png)
-1. Open the Application Insights instance that was created by the Bicep deploy. Open the `Live metrics` tab to monitor for live events. Notice that it can't connect to the application, or shows only one 'server' online. This is expected, because the Flex Consumption app is scaled down as there's no traffic or executions happening yet.
-1. Inspect [the host.json file](./src/host.json) and notice that Service Bus' `maxConcurrentCalls` has been set to 1. This makes the per instance concurrency be 1 so your function will scale to multiple instances to handle messages put in the Service Bus queue.
-1. Inspect the [function_app.py](./src/function_app.py) and notice there is a delay of 30 seconds in the code, to simulate that each message would take 30 seconds to complete being processed.
+    ```shell
+    python -m venv .venv
+    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+    ```
+
+3. Install the required Python packages:
+
+    ```shell
+    pip install -r src/requirements.txt
+    ```
+
+## Run your app from the terminal
+
+1. From the `src` folder, run this command to start the Functions host locally:
+
+    ```shell
+    func start
+    ```
+
+    > [!NOTE]
+    > Since this function uses a Service Bus trigger, it will start but won't process messages until connected to an actual Service Bus queue. The function will be ready and waiting for messages.
+
+2. The function will start and display the available functions. You should see output similar to:
+
+    ```
+    Functions:
+        servicebus_queue_trigger: serviceBusQueueTrigger
+    ```
+
+3. To fully test the Service Bus functionality, you'll need to deploy to Azure first (see [Deploy to Azure](#deploy-to-azure) section) and then send messages through the Azure portal.
+
+4. When you're done, press Ctrl+C in the terminal window to stop the `func` host process.
+
+## Run your app using Visual Studio Code
+
+1. Open the project root folder in Visual Studio Code.
+2. Open the `src` folder in the terminal within VS Code.
+3. Press **Run/Debug (F5)** to run in the debugger. 
+4. The Azure Functions extension will automatically detect your function and start the local runtime.
+5. The function will start and be ready to receive Service Bus messages (though local testing requires an actual Service Bus connection).
+
+## Source Code
+
+The Service Bus trigger function is defined in [`src/function_app.py`](./src/function_app.py). The function uses the `@app.service_bus_queue_trigger` decorator to define the trigger configuration.
+
+This code shows the Service Bus queue trigger:
+
+```python
+import azure.functions as func
+import logging
+import time
+
+app = func.FunctionApp()
+
+@app.service_bus_queue_trigger(arg_name="azservicebus", queue_name="%ServiceBusQueueName%",
+                               connection="ServiceBusConnection") 
+def servicebus_queue_trigger(azservicebus: func.ServiceBusMessage):
+    logging.info('Python ServiceBus Queue trigger start processing a message: %s',
+                azservicebus.get_body().decode('utf-8'))
+    time.sleep(30)
+    logging.info('Python ServiceBus Queue trigger end processing a message')
+```
+
+Key aspects of this code:
+
++ The `@app.service_bus_queue_trigger` decorator configures the function to trigger when messages arrive in the specified Service Bus queue
++ The queue name is read from the `ServiceBusQueueName` environment variable using the `%ServiceBusQueueName%` syntax
++ The connection string is read from the `ServiceBusConnection` setting
++ The function includes a 30-second `time.sleep(30)` delay to simulate message processing time and demonstrate the scaling behavior
++ Each message body is logged for debugging purposes
+
+The function configuration in [`src/host.json`](./src/host.json) sets `maxConcurrentCalls` to 1 for the Service Bus extension:
+
+```json
+{
+  "extensions": {
+    "serviceBus": {
+        "maxConcurrentCalls": 1
+    }
+  }
+}
+```
+
+This configuration ensures that each function instance processes only one message at a time, which triggers the Flex Consumption plan to scale out to multiple instances when multiple messages are queued.
+
+## Deploy to Azure
+
+Run this command to provision the function app, with any required Azure resources, and deploy your code:
+
+```shell
+azd up
+```
+
+You're prompted to supply these required deployment parameters:
+
+| Parameter | Description |
+| ---- | ---- |
+| _Environment name_ | An environment that's used to maintain a unique deployment context for your app. You won't be prompted if you created the local project using `azd init`. |
+| _Azure subscription_ | Subscription in which your resources are created. |
+| _Azure location_ | Azure region in which to create the resource group that contains the new Azure resources. Only regions that currently support the Flex Consumption plan are shown. |
+
+After deployment completes successfully, `azd` provides you with the URL endpoints and resource information for your new function app.
 
 ## Test the solution
 
-1. You can use the Service Bus Explorer in the Azure Portal to send messages to the Service Bus queue. You'll need to configure your client IP Address in the Service Bus firewall first:
-![Service Bus networking page adding client IP address to firewall](./img/sb-addclientip.png)
-You can then follow [Use Service Bus Explorer to run data operations on Service Bus](https://learn.microsoft.com/en-us/azure/service-bus-messaging/explorer) to send messages and peek messages from the queue.
-![Service Bus explorer showing messages in the queue](./img/sb-messages.png)
-1. Use the Service Bus Explorer in the portal or app to send 1,000 messages.
-1. Open Application Insights live metrics and notice the number of instances ('servers online'). Notice your app scaling the number of instances to handle processing the messages. Given there is a purposeful [30 second delay in the app code](./src/function_app.py#L12) you should see the messages being processed in 30 seconds intervals once the app's maximum instance count (default of 100) is reached. The sample telemetry should also show that your messages are triggering the function, and making their way from Service Bus through the VNet into the function app for processing.
-![Live metrics available](./img/live-metrics.png)
+1. Once deployment is complete, you can test the Service Bus trigger functionality:
+
+2. **Configure Service Bus access**: You'll need to configure your client IP address in the Service Bus firewall to send test messages:
+   ![Service Bus networking page adding client IP address to firewall](./img/sb-addclientip.png)
+
+3. **Send test messages**: Use the Service Bus Explorer in the Azure Portal to send messages to the Service Bus queue. Follow [Use Service Bus Explorer to run data operations on Service Bus](https://learn.microsoft.com/en-us/azure/service-bus-messaging/explorer) to send messages and peek messages from the queue.
+   ![Service Bus explorer showing messages in the queue](./img/sb-messages.png)
+
+4. **Monitor scaling behavior**: 
+   - Send 1,000 messages using the Service Bus Explorer
+   - Open Application Insights live metrics and observe the number of instances ('servers online')
+   - Notice your app scaling the number of instances to handle processing the messages
+   - Given the purposeful 30-second delay in the app code, you should see messages being processed in 30-second intervals once the app's maximum instance count (default of 100) is reached
+   ![Live metrics available](./img/live-metrics.png)
+
+The sample telemetry should show that your messages are triggering the function and making their way from Service Bus through the VNet into the function app for processing.
+
+## Redeploy your code
+
+You can run the `azd up` command as many times as you need to both provision your Azure resources and deploy code updates to your function app.
+
+> [!NOTE]
+> Deployed code files are always overwritten by the latest deployment package.
 
 ## Clean up resources
 
-When you no longer need the resources created in this sample, run the following command to delete the Azure resources:
+When you're done working with your function app and related resources, you can use this command to delete the function app and its related resources from Azure and avoid incurring any further costs:
 
-```bash
+```shell
 azd down
 ```
 
