@@ -33,6 +33,7 @@ module processor '../core/host/functions-flexconsumption.bicep' = {
         ServiceBusConnection__credential : 'managedidentity'
         AzureWebJobsStorage__clientId : identityClientId
         ServiceBusQueueName: serviceBusQueueName
+        PYTHON_APPLICATIONINSIGHTS_ENABLE_TELEMETRY: 'true'
       })
     applicationInsightsName: applicationInsightsName
     appServicePlanId: appServicePlanId

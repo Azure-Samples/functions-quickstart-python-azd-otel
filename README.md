@@ -1,35 +1,35 @@
 ---
-description: This end-to-end Python sample demonstrates the secure triggering of a Flex Consumption plan app from a Service Bus instance secured in a virtual network.
+description: This end-to-end Python sample demonstrates distributed tracing with OpenTelemetry across multiple Azure Functions in a Flex Consumption plan app with Service Bus integration and virtual network security.
 page_type: sample
 products:
 - azure-functions
 - azure
-urlFragment: service-bus-trigger-virtual-network
+urlFragment: functions-quickstart-python-azd-otel
 languages:
 - python
 - bicep
 - azdeveloper
 ---
 
-# Azure Functions Python Service Bus Trigger using Azure Developer CLI
+# Azure Functions Python Service Bus Trigger with OpenTelemetry Distributed Tracing using Azure Developer CLI
 
-This template repository contains a Service Bus trigger reference sample for functions written in Python and deployed to Azure using the Azure Developer CLI (`azd`). The sample uses managed identity and a virtual network to make sure deployment is secure by default. This sample demonstrates these two key features of the Flex Consumption plan:
+This template repository contains a Service Bus trigger reference sample for functions written in Python and deployed to Azure using the Azure Developer CLI (`azd`). The sample demonstrates distributed tracing using OpenTelemetry across multiple Azure Functions and includes managed identity and virtual network integration for secure deployment by default. This sample demonstrates these key features:
 
-* **High scale**. A low concurrency of 1 is configured for the function app in the `host.json` file. Once messages are loaded into Service Bus and the app is started, you can see how it scales to one app instance per message simultaneously.
+* **Distributed tracing with OpenTelemetry**. The sample shows how to trace requests across multiple Azure Functions using OpenTelemetry integration, providing end-to-end visibility into function execution flows.
 * **Virtual network integration**. The Service Bus that this Flex Consumption app reads events from is secured behind a private endpoint. The function app can read events from it because it is configured with VNet integration. All connections to Service Bus and to the storage account associated with the Flex Consumption app also use managed identity connections instead of connection strings.
 
 ![Diagram showing Service Bus with a private endpoint and an Azure Functions Flex Consumption app triggering from it via VNet integration](./img/SB-VNET.png)
 
 This project is designed to run on your local computer. You can also use GitHub Codespaces if available.
 
-This sample processes queue-based events, demonstrating a common Azure Functions scenario where batch processing jobs are queued up with instructions for processing. The function app processes each message with a simulated delay to showcase the scaling capabilities.
+This sample demonstrates distributed tracing across multiple Azure Functions with OpenTelemetry integration. The app includes three functions that work together: an HTTP-triggered function that calls a second HTTP function, which then sends a message to Service Bus that triggers a third function. This creates a complete end-to-end tracing scenario that you can observe in Application Insights.
 
 > [!IMPORTANT]
 > This sample creates several resources. Make sure to delete the resource group after testing to minimize charges!
 
 ## Prerequisites
 
-+ [Python 3.8 or later](https://www.python.org/downloads/)
++ [Python 3.11 or later](https://www.python.org/downloads/)
 + [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local?tabs=v4%2Clinux%2Cpython%2Cportal%2Cbash#install-the-azure-functions-core-tools)
 + To use Visual Studio Code to run and debug locally:
   + [Visual Studio Code](https://code.visualstudio.com/)
@@ -46,7 +46,7 @@ You can initialize a project from this `azd` template in one of these ways:
 + Use this `azd init` command from an empty local (root) folder:
 
     ```shell
-    azd init --template functions-quickstart-python-azd-service-bus
+    azd init --template functions-quickstart-python-azd-otel
     ```
 
     Supply an environment name, such as `flexquickstart` when prompted. In `azd`, the environment is used to maintain a unique deployment context for your app.
@@ -54,8 +54,8 @@ You can initialize a project from this `azd` template in one of these ways:
 + Clone the GitHub template repository locally using the `git clone` command:
 
     ```shell
-    git clone https://github.com/Azure-Samples/functions-quickstart-python-azd-service-bus.git
-    cd functions-quickstart-python-azd-service-bus
+    git clone https://github.com/Azure-Samples/functions-quickstart-python-azd-otel.git
+    cd functions-quickstart-python-azd-otel
     ```
 
     You can also clone the repository from your own fork in GitHub.
@@ -101,16 +101,18 @@ You can initialize a project from this `azd` template in one of these ways:
     ```
 
     > [!NOTE]
-    > Since this function uses a Service Bus trigger, it will start but won't process messages until connected to an actual Service Bus queue. The function will be ready and waiting for messages.
+    > The Service Bus trigger function will start but won't process messages until connected to an actual Service Bus queue. However, you can test the HTTP functions locally.
 
 2. The function will start and display the available functions. You should see output similar to:
 
     ```
     Functions:
+        first_http_function: [GET,POST] http://localhost:7071/api/first_http_function
+        second_http_function: [GET,POST] http://localhost:7071/api/second_http_function
         servicebus_queue_trigger: serviceBusQueueTrigger
     ```
 
-3. To fully test the Service Bus functionality, you'll need to deploy to Azure first (see [Deploy to Azure](#deploy-to-azure) section) and then send messages through the Azure portal.
+3. You can test the HTTP functions locally by calling the endpoint, though the Service Bus functionality requires deployment to Azure for full testing.
 
 4. When you're done, press Ctrl+C in the terminal window to stop the `func` host process.
 
@@ -124,47 +126,103 @@ You can initialize a project from this `azd` template in one of these ways:
 
 ## Source Code
 
-The Service Bus trigger function is defined in [`src/function_app.py`](./src/function_app.py). The function uses the `@app.service_bus_queue_trigger` decorator to define the trigger configuration.
+The function app is defined in [`src/function_app.py`](./src/function_app.py) and contains three functions that demonstrate distributed tracing across a complete request flow:
 
-This code shows the Service Bus queue trigger:
-
+### 1. First HTTP Function
 ```python
-import azure.functions as func
-import logging
-import time
+@app.function_name("first_http_function")
+@app.route(route="first_http_function", auth_level=func.AuthLevel.ANONYMOUS)
+def first_http_function(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Python HTTP trigger function (first) processed a request.')
+    
+    # Call the second function
+    base_url = f"{req.url.split('/api/')[0]}/api"
+    second_function_url = f"{base_url}/second_http_function"
+    
+    response = requests.get(second_function_url)
+    second_function_result = response.text
+    
+    result = {
+        "message": "Hello from the first function!",
+        "second_function_response": second_function_result
+    }
+    
+    return func.HttpResponse(
+        json.dumps(result),
+        status_code=200,
+        mimetype="application/json"
+    )
+```
 
-app = func.FunctionApp()
+### 2. Second HTTP Function
+```python
+@app.function_name("second_http_function")
+@app.route(route="second_http_function", auth_level=func.AuthLevel.ANONYMOUS)
+@app.service_bus_queue_output(arg_name="outputsbmsg", queue_name="%ServiceBusQueueName%",
+                              connection="ServiceBusConnection")
+def second_http_function(req: func.HttpRequest, outputsbmsg: func.Out[str]) -> func.HttpResponse:
+    logging.info('Python HTTP trigger function (second) processed a request.')
 
+    message = "This is the second function responding."
+    
+    # Send a message to the Service Bus queue
+    queue_message = "Message from second HTTP function to trigger ServiceBus queue processing"
+    outputsbmsg.set(queue_message)
+    logging.info('Sent message to ServiceBus queue: %s', queue_message)
+    
+    return func.HttpResponse(
+        message,
+        status_code=200
+    )
+```
+
+### 3. Service Bus Queue Trigger
+```python
 @app.service_bus_queue_trigger(arg_name="azservicebus", queue_name="%ServiceBusQueueName%",
                                connection="ServiceBusConnection") 
 def servicebus_queue_trigger(azservicebus: func.ServiceBusMessage):
     logging.info('Python ServiceBus Queue trigger start processing a message: %s',
                 azservicebus.get_body().decode('utf-8'))
-    time.sleep(30)
+    time.sleep(5)
     logging.info('Python ServiceBus Queue trigger end processing a message')
 ```
 
-Key aspects of this code:
+### Distributed Tracing Flow
+This architecture creates a complete distributed tracing scenario:
+1. **First HTTP function** receives an HTTP request and calls the second HTTP function
+2. **Second HTTP function** responds and sends a message to Service Bus
+3. **Service Bus trigger** processes the message with a 5-second delay to simulate processing work
 
-+ The `@app.service_bus_queue_trigger` decorator configures the function to trigger when messages arrive in the specified Service Bus queue
-+ The queue name is read from the `ServiceBusQueueName` environment variable using the `%ServiceBusQueueName%` syntax
-+ The connection string is read from the `ServiceBusConnection` setting
-+ The function includes a 30-second `time.sleep(30)` delay to simulate message processing time and demonstrate the scaling behavior
-+ Each message body is logged for debugging purposes
+Key aspects of the implementation:
 
-The function configuration in [`src/host.json`](./src/host.json) sets `maxConcurrentCalls` to 1 for the Service Bus extension:
++ **OpenTelemetry integration**: The `host.json` file enables OpenTelemetry with `"telemetryMode": "OpenTelemetry"`
++ **Function chaining**: The first function calls the second using HTTP requests
++ **Service Bus integration**: The second function outputs to Service Bus, which triggers the third function
++ **Managed identity**: All Service Bus connections use managed identity instead of connection strings
++ **Processing simulation**: The 5-second delay in the Service Bus trigger simulates message processing work
+
+The function configuration in [`src/host.json`](./src/host.json) enables OpenTelemetry and configures Service Bus settings:
 
 ```json
 {
+  "version": "2.0",
+  "telemetryMode": "OpenTelemetry",
   "extensions": {
     "serviceBus": {
-        "maxConcurrentCalls": 1
+        "maxConcurrentCalls": 10
     }
+  },
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[4.*, 5.0.0)"
   }
 }
 ```
 
-This configuration ensures that each function instance processes only one message at a time, which triggers the Flex Consumption plan to scale out to multiple instances when multiple messages are queued.
+Key configuration aspects:
++ **OpenTelemetry**: `"telemetryMode": "OpenTelemetry"` enables distributed tracing across function calls
++ **Service Bus concurrency**: `maxConcurrentCalls: 10` allows multiple messages to be processed concurrently
++ **Dependencies**: The `requirements.txt` file includes `azure-monitor-opentelemetry` and `requests` packages for tracing and HTTP calls
 
 ## Deploy to Azure
 
@@ -186,22 +244,26 @@ After deployment completes successfully, `azd` provides you with the URL endpoin
 
 ## Test the solution
 
-1. Once deployment is complete, you can test the Service Bus trigger functionality:
+1. Once deployment is complete, you can test the distributed tracing functionality by calling the `first_http_function`:
 
-2. **Configure Service Bus access**: You'll need to configure your client IP address in the Service Bus firewall to send test messages:
-   ![Service Bus networking page adding client IP address to firewall](./img/sb-addclientip.png)
+2. **Call the first HTTP function**: Use the function URL provided after deployment to trigger the complete distributed tracing flow:
+   ```
+   https://your-function-app.azurewebsites.net/api/first_http_function
+   ```
 
-3. **Send test messages**: Use the Service Bus Explorer in the Azure Portal to send messages to the Service Bus queue. Follow [Use Service Bus Explorer to run data operations on Service Bus](https://learn.microsoft.com/en-us/azure/service-bus-messaging/explorer) to send messages and peek messages from the queue.
-   ![Service Bus explorer showing messages in the queue](./img/sb-messages.png)
+3. **View distributed tracing in Application Insights**: 
+   - Navigate to your Application Insights resource in the Azure Portal
+   - Open the "Application map" to see the distributed trace across all three functions
+   - Check the "Transaction search" to find your request and see the complete trace timeline
+   - The trace will show: HTTP request → first_http_function → second_http_function → Service Bus message → servicebus_queue_trigger
 
-4. **Monitor scaling behavior**: 
-   - Send 1,000 messages using the Service Bus Explorer
-   - Open Application Insights live metrics and observe the number of instances ('servers online')
-   - Notice your app scaling the number of instances to handle processing the messages
-   - Given the purposeful 30-second delay in the app code, you should see messages being processed in 30-second intervals once the app's maximum instance count (default of 100) is reached
-   ![Live metrics available](./img/live-metrics.png)
+The Application Insights telemetry will show the complete distributed trace:
+- The HTTP request to `first_http_function`
+- The internal HTTP call to `second_http_function` 
+- The Service Bus message being sent
+- The `servicebus_queue_trigger` processing the message through the VNet-secured Service Bus
 
-The sample telemetry should show that your messages are triggering the function and making their way from Service Bus through the VNet into the function app for processing.
+This demonstrates end-to-end distributed tracing across multiple Azure Functions with OpenTelemetry integration.
 
 ## Redeploy your code
 
@@ -220,8 +282,10 @@ azd down
 
 ## Resources
 
-For more information on Azure Functions, Service Bus, and VNet integration, see the following resources:
+For more information on Azure Functions, Service Bus, OpenTelemetry, and VNet integration, see the following resources:
 
 * [Azure Functions documentation](https://docs.microsoft.com/azure/azure-functions/)
 * [Azure Service Bus documentation](https://docs.microsoft.com/azure/service-bus/)
 * [Azure Virtual Network documentation](https://docs.microsoft.com/azure/virtual-network/)
+* [OpenTelemetry in Azure Functions](https://learn.microsoft.com/azure/azure-functions/opentelemetry)
+* [Application Insights and distributed tracing](https://learn.microsoft.com/azure/azure-monitor/app/distributed-tracing)
