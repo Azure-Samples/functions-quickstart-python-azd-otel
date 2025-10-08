@@ -18,8 +18,6 @@ This template repository contains a Service Bus trigger reference sample for fun
 * **Distributed tracing with OpenTelemetry**. The sample shows how to trace requests across multiple Azure Functions using OpenTelemetry integration, providing end-to-end visibility into function execution flows.
 * **Virtual network integration**. The Service Bus that this Flex Consumption app reads events from is secured behind a private endpoint. The function app can read events from it because it is configured with VNet integration. All connections to Service Bus and to the storage account associated with the Flex Consumption app also use managed identity connections instead of connection strings.
 
-![Diagram showing Service Bus with a private endpoint and an Azure Functions Flex Consumption app triggering from it via VNet integration](./img/SB-VNET.png)
-
 This project is designed to run on your local computer. You can also use GitHub Codespaces if available.
 
 This sample demonstrates distributed tracing across multiple Azure Functions with OpenTelemetry integration. The app includes three functions that work together: an HTTP-triggered function that calls a second HTTP function, which then sends a message to Service Bus that triggers a third function. This creates a complete end-to-end tracing scenario that you can observe in Application Insights.
